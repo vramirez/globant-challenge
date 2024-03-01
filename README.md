@@ -11,3 +11,13 @@ Deploys:
 - VPC for networking
 
 The Lambda thru the API Gateway reads from S3 and insert into the database on the required table, depending upon the batch_size parameter.
+
+
+# Setup
+
+After configuring your AWS environment locally and installing docker, run
+
+`cd cdk`
+`python -m venv .venv`
+`source .venv/bin/activate`
+`cdk deploy`
