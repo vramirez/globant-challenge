@@ -15,7 +15,6 @@ class CdkStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         csv_bucket = s3.Bucket(self, "csvBucket", removal_policy=core.RemovalPolicy.DESTROY)
-        # my_vpc = ec2.Vpc(self, "MyVpc", max_azs=2)
         my_vpc = ec2.Vpc(self, "MyVpc",
             max_azs=2,
             subnet_configuration=[
@@ -30,7 +29,7 @@ class CdkStack(Stack):
             ],
         )
 
-        
+        # RDS MySQL database for storing the 
         my_database = rds.DatabaseInstance(self, "globant_db",
         engine=rds.DatabaseInstanceEngine.mysql(
             version=rds.MysqlEngineVersion.VER_8_0_28
@@ -46,7 +45,7 @@ class CdkStack(Stack):
         deletion_protection=False,
         instance_identifier="globantInstance",
         database_name="globant_db",
-        credentials=rds.Credentials.from_generated_secret("globant_db_admin"),
+        credentials=rds.Credentials.from_generated_secret(username="gbadmin",secret_name="globant_secret"),
         port=3306
     )
         glo_bundle=core.BundlingOptions(
@@ -56,6 +55,8 @@ class CdkStack(Stack):
                     "pip install --no-cache -r requirements.txt -t /asset-output && cp -au . /asset-output"
                 ],
             )
+        
+        # Lambda to download and parse CSV file
         lambda_reader = lambda_.Function(self, "lambda_csv_reader",
             runtime=lambda_.Runtime.PYTHON_3_8,
             handler="lambda_read_s3.lambda_handler",  
@@ -83,8 +84,12 @@ class CdkStack(Stack):
         # Create API Gateway resource
         my_resource = api.root.add_resource("readFile")
         method = my_resource.add_method("GET", integration)
-        #method.
-        integration.request_parameters={"method.request.querystring.paramtest" : True}
+        
+        # Parameter for the file name, i.e. hired_employees.csv
+        integration.request_parameters={"method.request.querystring.filename" : "file.csv"}
+        
+        # Batch size for processing, from 1 to 1000 (will be 1 by default)
+        integration.request_parameters={"method.request.querystring.batch_size" : 1}
         csv_bucket.grant_read(lambda_reader)
 
 
