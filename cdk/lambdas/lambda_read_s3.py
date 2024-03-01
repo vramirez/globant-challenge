@@ -21,13 +21,13 @@ secrets_manager = boto3.client('secretsmanager')
 def lambda_handler(event, context):
     db_secret_name = "globant_secret"
     google_secret_name = "google_secret"
+    file_name = event['filename']
+    batch_size= event['batch_size']
     response = secrets_manager.get_secret_value(SecretId=db_secret_name)
     g_response = secrets_manager.get_secret_value(SecretId=google_secret_name)
     db_secret_data = json.loads(response['SecretString'])
-    g_secret_data = json.loads(g_response['SecretString'])
-    print(fail)
-    print(type(fail))
-    pass
+    #Skipping Google Drive implementation
+    #g_secret_data = json.loads(g_response['SecretString'])
     try:
         # Retrieve environment variables for MySQL conn
         db_host = db_secret_data['host']
@@ -39,16 +39,16 @@ def lambda_handler(event, context):
         connect_to_mysql(db_host, db_user, db_password, db_name,db_port)
 
         # Process files in S3 bucket
-        for record in event['Records']:
-            bucket_name = record['bucket_name']
-            object_key = record['object_key']
+
+        bucket_name = event['bucket_name']
+        object_key = file_name
 
 
-            # Read CSV file from S3
-            data = read_csv_from_s3(bucket_name, object_key)
+        # Read CSV file from S3
+        data = read_csv_from_s3(bucket_name, object_key)
 
-            # Process data in batches and insert into MySQL table
-            process_data(data)
+        # Process data in batches and insert into MySQL table
+        process_data(file_name,data,batch_size)
 
     except Exception as e:
         logger.error(f"Error processing S3 file: {str(e)}")
@@ -144,7 +144,7 @@ def read_google_drive_file(google_secret,file_id):
     file_content = file_handle.getvalue().decode('utf-8')
     return file_content
 
-def process_data(data,batch_size=1):
+def process_data(file_name,data,batch_size=1):
     cursor = connection.cursor()
     try:
         batch = []
